@@ -1,0 +1,34 @@
+{
+    "name": "virtual-scroll-bounding",
+    "version": "0.0.1",
+    "description": "js virtual scroll model",
+    "main": "vsb.min.js",
+    "scripts": {
+        "build": "terser ./index.js -c -o vsb.min.js",
+        "test": "mocha",
+        "test:debug": "mocha --inspect-brk",
+        "coverage": "nyc -r json -r html mocha",
+        "patch": "npm version patch && npm publish",
+        "minor": "npm version minor && npm publish",
+        "preversion": "npm run test",
+        "version": "npm run build && git add -A",
+        "postversion": "git push"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/pixelsLee/virtual-scroll-bounding.git"
+    },
+    "keywords": [
+        "js",
+        "virtual",
+        "scroll"
+    ],
+    "author": "pixelsLee <pixelslee@foxmail.com>",
+    "license": "MIT",
+    "devDependencies": {
+        "chai": "^4.3.6",
+        "mocha": "^9.2.2",
+        "nyc": "^15.1.0",
+        "terser": "^5.12.1"
+    }
+}
