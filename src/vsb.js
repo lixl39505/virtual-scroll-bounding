@@ -282,7 +282,7 @@
             pos.er = Math.min(this.virtualLength - 1, pos.rowCount - 1)
             pos.rows = list.slice(pos.sr, pos.er + 1)
             pos.ahs = repeat(mh, size)
-            pos.ah = sum(pos.hs)
+            pos.ah = sum(pos.ahs)
         }
         // 上一次的计算结果
         var ah = pos.ah,

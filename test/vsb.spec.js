@@ -19,30 +19,40 @@ describe('vsb', function () {
         })
 
         vsb.position.cr.should.equal(0)
-        // scroll down 10.5 rows
+        // scroll down 20.5 rows
         vsb.scrollTo({
-            top: 10 * 30 + 15,
+            top: 20 * 30 + 15,
         })
 
         vsb.position.vh.should.equal(1000 * 30)
-        vsb.position.sr.should.equal(1)
-        vsb.position.cr.should.equal(11)
-        vsb.position.er.should.equal(30)
-        vsb.position.top.should.equal(30)
+        vsb.position.sr.should.equal(11)
+        vsb.position.cr.should.equal(21)
+        vsb.position.er.should.equal(40)
+        vsb.position.top.should.equal(330)
         vsb.position.topRem.should.equal(15)
 
         // adjusting
         vsb.virtualAdjust = true
         vsb.resetVirtualPosition()
         vsb.scrollTo({
-            top: 10 * 30 + 15,
+            top: 20 * 30 + 15,
         })
         var ahs = []
-        // the first 10 rows become higher
+        for (var i = 0; i < 30; i++) {
+            ahs[i] = 30
+        }
+
+        vsb.adjust(ahs)
+        vsb.position.vh.should.equal(1000 * 30)
+        vsb.position.top.should.equal(330)
+
+        vsb.scrollTo({
+            top: 10 * 30 + 15,
+        })
+        // 前10行变高
         for (var i = 0; i < 30; i++) {
             ahs[i] = i < 10 ? 40 : 30
         }
-
         var top = vsb.position.scrollY + 15 - 10 * 40 // top 此时的理论值 = -70
         vsb.adjust(ahs)
         vsb.position.vh.should.equal(1000 * 30 + 10 * 10)
