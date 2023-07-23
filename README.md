@@ -1,7 +1,55 @@
-# 简介
+# 说明
 
-默认使用等比滚动算法。如果行高是可变的，那么等比滚动时，虚拟列表的滚动速度就会比滚动条要快（行比标准高度越高，则滚动的越快）。
+该库是一个虚拟滚动的纯 js 计算模型，可以根据滚动偏移计算当前应该显示的列表范围，最终作为 UI 渲染框架的输入。
 
-如果滚动速率不一致是无法接受的，可以开启 adjustRowHeight 选项以启用等差滚动算法。但是等差滚动会导致虚拟列表的滚动距离与实际滚动距离不一致。为了修补这个问题，需要在每次等差滚动后手动调用 adjust 方法。
+基本原理：
 
-adjust 的计算依据是列表各行的实际高度，不过该算法不包含 DOM 部分，因此各行实际高度需要调用者自行提供。
+<div>
+    <img src="./virtual-list.png" width="400">
+</div>
+
+示例：
+
+```js
+// base example
+var vsb = new VirtualScrollBounding({
+    list: lsitData, // 实际数据
+    minRowHeight: 30, // 最小行高
+    clientHeight: 300, // 视口高度
+    virtualLength: 30, // 虚拟列表长度
+})
+
+vsb.on(
+    'update',
+    ({
+        strategy, // 计算策略，VirtualScrollBounding.EQUAL_RATIO(等比滚动)或VirtualScrollBounding.EQUAL_DIFF(等差滚动)
+        top, // 列表顶部偏移
+        rows, // 当前应该显示的列表子集
+    }) => {
+        // update dom
+    }
+)
+
+vsb.scrollTo({ top: 300 }) // 滚动到指定距离
+```
+
+## 高度自适应
+
+```js
+var vsb = new VirtualScrollBounding({
+    list: lsitData,
+    minRowHeight: 30,
+    clientHeight: 300,
+    virtualLength: 30,
+    virtualAdjust: true, // 开启高度自适应
+})
+
+vsb.on('update', ({ strategy, top, rows }) => {
+    // update dom
+})
+
+vsb.scrollTo({ top: 300 }) // 滚动到指定距离
+vsb.adjust(ahs) // 实际各列表行高
+```
+
+跟固定行高相比，需启用 `virtualAdjust`。然后在 `scrollTo()` 之后需调用 `adjust(ahs)` 用来调整高度。参数 ahs 是一个数组，代表虚拟列表每一行的实际高度（来源于外部，比如读取 dom）。
