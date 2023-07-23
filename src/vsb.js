@@ -299,13 +299,11 @@
         function reCalc() {
             pos.strategy = EQUAL_RATIO
             // console.log('before', pos.sr, pos.er)
-            var extra = ah - (pos.er - pos.sr + 1) * mh
-            // 还原高度
-            pos.vh = pos.rowCount * mh
-            pos.cr = Math.ceil((scrollY - extra) / mh)
+            pos.vh = pos.rowCount * mh // 还原高度
+            pos.cr = Math.ceil(scrollY / mh)
             pos.sr = Math.max(pos.cr - Math.ceil(size / 3), 0)
             pos.er = Math.min(pos.sr + size - 1, pos.rowCount - 1)
-            pos.topRem = pos.cr * mh - (scrollY - extra)
+            pos.topRem = pos.cr * mh - scrollY
         }
         // 等差滚动
         function relativeCalc() {
