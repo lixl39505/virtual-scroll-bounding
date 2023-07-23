@@ -80,208 +80,371 @@
 
         return to
     }
+    // 节流
+    function throttle(delay, callback, options, debounceMode) {
+        var timeoutId,
+            lastTimeoutId,
+            lastExec = 0
+
+        options = options || {}
+        var leading = options.leading || true,
+            trailing = options.trailing || true,
+            immediate = options.immediate || false
+
+        function wrapper() {
+            var self = this
+            var elapsed = Number(new Date()) - lastExec
+            var args = arguments
+
+            // Execute `callback` and update the `lastExec` timestamp.
+            function exec() {
+                lastExec = Number(new Date())
+                callback.apply(self, args)
+            }
+
+            function clear() {
+                if (timeoutId) {
+                    clearTimeout(timeoutId)
+                    timeoutId = undefined
+                }
+
+                if (lastTimeoutId) {
+                    clearTimeout(lastTimeoutId)
+                    lastTimeoutId = undefined
+                }
+            }
+
+            // Clear any existing timeout.
+            clear()
+
+            // debounce mode
+            if (debounceMode) {
+                // 第一次立即执行
+                if (lastExec === 0 && immediate) {
+                    return exec()
+                }
+
+                timeoutId = setTimeout(exec, delay)
+            }
+            // throttle mode
+            else {
+                // 第一次执行
+                if (lastExec === 0) {
+                    // 立即执行
+                    if (leading) {
+                        return exec()
+                    } else {
+                        // 更新时间点
+                        return (lastExec = Number(new Date()))
+                    }
+                } else {
+                    // 间隔有效
+                    if (elapsed > delay) {
+                        exec()
+                    }
+                    // 总是允许最后一次执行
+                    else if (trailing) {
+                        lastTimeoutId = setTimeout(exec, delay - elapsed)
+                    }
+                }
+            }
+        }
+
+        // Return the wrapper function.
+        return wrapper
+    }
+    // 防抖
+    function debounce(delay, callback, options) {
+        return throttle(delay, callback, options, true)
+    }
 
     // 虚拟滚动计算模型
     function VirtualScrollBounding(options) {
-        // params
+        // props
         options = assign(
             {
                 list: [], // @required 实际列表数据
-                minRowHeight: 48, // @required 最小行高(px)
-                minColWidth: 100, // @required 最小列宽(px)
-                virtualLength: 48, // 虚拟列表长度
-                clientHeight: 0, // 视口高度(px)
-                adjustRowHeight: false, // 自适应行高
+                minRowHeight: 48, // @required 最小行高
+                minColWidth: 100, // @required 最小列宽
+                virtualLength: 36, // 虚拟列表长度
+                virtualSpan: 10, // 虚拟列表跨度
+                clientHeight: 0, // 视口高度
+                clientWidth: 0, // 视口宽度
+                virtualAdjust: false, // 适应可变行高/列宽
             },
             options
         )
         this.list = options.list
         this.minRowHeight = options.minRowHeight
-        this.adjustRowHeight = options.adjustRowHeight
+        this.minColWidth = options.minColWidth
+        this.virtualAdjust = options.virtualAdjust
         this.virtualLength = options.virtualLength
+        this.virtualSpan = options.virtualSpan
         this.clientHeight = options.clientHeight
+        // events
+        this.events = {}
         // state
-        this.scrollY = 0 // 滚动距离
+        this.scrollY = 0 // dom srcollY
+        this.scrollX = 0 // dom scrollX
         this.position = {
             init: false, //
             adjusting: false, //
+            // axis Y
             vh: 0, // virtual height
             ah: 0, // actual height
-            rows: [], // actual rows
-            columns: [], // actual headers
             ahs: [], // actual height array
-            aws: [], // actual width array
-            rowCount: 0, //
-            colCount: 0, //
-            top: 0, //
-            left: 0, //
-            topRem: 0, // distance of the first row from the top of the viewport
-            leftRem: 0, // distance of the first column from the left of the viewport
-            scrollY: 0, //
-            scrollX: 0, //
+            top: 0, // offset top
+            scrollY: 0, // current scrollY
             lastCalcScrollY: 0, // scrollY of last calculation
-            lastCalcScrollX: 0, // scrollX of last calculation
+            topRem: 0, // distance of the first row from the top of the viewport
             sr: 0, // start row index
             cr: 0, // current row index
             er: 0, // end row index
+            rows: [], // actual rows
+            rowCount: 0, //
+            // axis X
+            vw: 0, // virtual width
+            aw: 0, // actual width
+            aws: [], // actual width array
+            left: 0, // offset left
+            scrollX: 0, // current scrollX
+            lastCalcScrollX: 0, // scrollX of last calculation
+            leftRem: 0, // distance of the first column from the left of the viewport
+            sc: 0, // start col index
+            cc: 0, // current col index
+            ec: 0, // end col index
+            columns: [], // actual columns
+            colCount: 0, //
         }
     }
+    var proto = VirtualScrollBounding.prototype
 
-    assign(VirtualScrollBounding.prototype, {
-        // 计算虚拟滚动位置
-        _calc() {
-            var list = this.list,
-                clientHeight = this.clientHeight,
-                scrollY = this.scrollY
-
-            if (this.position.adjusting) {
-                return
-            }
-            if (scrollY < 0) scrollY = 0
-
-            var pos = this.position,
-                size = this.virtualLength,
-                mh = this.minRowHeight,
-                dt = scrollY - pos.lastCalcScrollY // 滚动增量
-
-            // 首次计算
-            if (pos.init === false) {
-                pos.init = true
-                pos.rowCount = list.length
-                pos.vh = pos.rowCount * mh
-                pos.er = Math.min(this.virtualLength - 1, pos.rowCount - 1)
-                pos.rows = list.slice(pos.sr, pos.er + 1)
-                pos.ahs = repeat(mh, size)
-                pos.ah = sum(pos.ahs)
-            }
-            // 上一次的计算结果
-            var ah = pos.ah,
-                rowCount = pos.rowCount,
-                top = pos.top,
-                sr = pos.sr,
-                er = pos.er,
-                lastCalcScrollY = pos.lastCalcScrollY
-
-            // 更新虚拟高度
-            pos.rowCount = list.length
-            // 同步滚动距离
-            pos.scrollY = scrollY
-            // 等比滚动
-            function reCalc() {
-                // console.log('before', pos.sr, pos.er)
-                var extra = ah - (pos.er - pos.sr + 1) * mh
-                // 还原高度
-                pos.vh = pos.rowCount * mh
-                pos.cr = Math.ceil((scrollY - extra) / mh)
-                pos.sr = Math.max(pos.cr - Math.ceil(size / 3), 0)
-                pos.er = Math.min(pos.sr + size - 1, pos.rowCount - 1)
-                pos.topRem = pos.cr * mh - scrollY + extra
-            }
-            // 等距滚动
-            function relativeCalc() {
-                // console.log('before', pos.sr, pos.er)
-                pos.cr = idxSumUntil(pos.ahs, scrollY - top) + sr + 1
-                pos.topRem =
-                    sum(pos.ahs, 0, pos.cr - pos.sr - 1) - (scrollY - top)
-                pos.sr = Math.max(pos.cr - Math.ceil(size / 3), 0)
-                pos.er = Math.min(pos.sr + size - 1, pos.rowCount - 1)
-            }
-
-            // 数据长度发生了变化
-            if (rowCount !== pos.rowCount) {
-                reCalc()
-            }
-            // 相对向下滚动（相对于上一次的计算位置）
-            else if (dt > 0) {
-                // 超过原下半部阈值
-                if (dt > (ah - (lastCalcScrollY - top) - clientHeight) / 2) {
-                    // 在等距计算范围内
-                    if (scrollY - top <= ah) {
-                        relativeCalc()
-                    } else {
-                        reCalc()
-                    }
-                }
-            }
-            // 相对向上滚动
-            else if (dt < 0) {
-                // 超过原上半部阈值
-                if (dt < -(lastCalcScrollY - top) / 2) {
-                    // 在等距计算范围内
-                    if (scrollY - top > 0) {
-                        relativeCalc()
-                    } else {
-                        reCalc()
-                    }
-                }
-            }
-
-            // 数据范围发生了改变
-            if (sr !== pos.sr || er !== pos.er || rowCount !== pos.rowCount) {
-                pos.lastCalcScrollY = scrollY
-                pos.rows = this.list.slice(pos.sr, pos.er + 1)
-
-                this._virtualScrollTo()
-                if (this.adjustRowHeight) pos.adjusting = true
-            }
-            // console.timeEnd("calcposition")
-        },
-        // 虚拟滚动
-        _virtualScrollTo() {
-            var pos = this.position,
-                sr = pos.sr,
-                cr = pos.cr,
-                scrollY = pos.scrollY
-
-            // 虚拟偏移
-            pos.top =
-                sr > 0 ? scrollY - sum(pos.ahs, 0, cr - sr - 1) + pos.topRem : 0
-
-            // 虚拟滚动距离不足
-            if (pos.top < 0) {
-                pos.scrollY += -pos.top
-                pos.top = 0
-                pos.lastCalcScrollY = pos.scrollY
-            }
-        },
-        // 虚拟列表各行高度自适应调整
-        adjust(ahs) {
-            if (this.position.adjusting === false) {
-                return
-            }
-            if (!ahs || !ahs.splice) {
-                throw new Error('ahs must be array number')
-            }
-            // console.time("calcposition")
-            // console.time("adjust")
-            var pos = this.position,
+    // 设置虚拟列表
+    proto._setInnerList = function (sr, er, sc, ec) {
+        var pos = this.position
+        pos.rows = this.list.slice(sr, er + 1)
+        if (this.virtualAdjust) pos.adjusting = true
+        else {
+            // 修正实际高度
+            var len = pos.er > pos.sr ? pos.er - pos.sr + 1 : 0,
                 mh = this.minRowHeight
-
-            // 实际高度补差
-            pos.ahs = ahs
-            pos.ah = sum(ahs)
-            // 虚拟高度补差
-            pos.vh = pos.rowCount * mh + pos.ah - ahs.length * mh
-            //
+            pos.ahs = repeat(mh, len)
+            pos.ah = len * mh
             this._virtualScrollTo()
-            // end
-            pos.adjusting = false
-            // console.log('after', pos.sr, pos.er)
-            // console.timeEnd("adjust")
-        },
-        // 触发滚动
-        scrollTo(x, y) {
-            // ({ top: number, left: number})
-            if (typeof x === 'object') {
-                y = x.top
-                x = x.left
-            }
-            if (!isNullOrUnDef(x)) this.scrollX = x
-            if (!isNullOrUnDef(y)) this.scrollY = y
+        }
+    }
+    // 惰性设置虚拟列表S
+    proto._setInnerListDelay = debounce(16 * 4, proto._setInnerList)
+    // 虚拟滚动
+    proto._virtualScrollTo = function () {
+        var pos = this.position,
+            sr = pos.sr,
+            cr = pos.cr,
+            scrollY = pos.scrollY,
+            scrollX = pos.scrollX
 
-            this._calc()
-        },
+        // 虚拟偏移
+        pos.top = sr > 0 ? scrollY - sum(pos.ahs, 0, cr - sr - 1) + pos.topRem : 0
+        // 实际滚动距离不足(变高场景)
+        if (pos.top < 0) {
+            pos.scrollY += -pos.top
+            pos.top = 0
+            pos.lastCalcScrollY = pos.scrollY
+            // 滚动条位置发生了变化
+            this.$emit('rescroll', { scrollY: pos.scrollY, scrollX: pos.scrollX })
+        }
+        // prettier-ignore
+        // console.log(`rowCount: ${pos.rowCount}, cr: ${pos.cr}, sr: ${pos.sr}, er: ${pos.er}, top: ${Math.round(pos.top)}, scrollY: ${pos.scrollY}`)
+        this._emitScroll()
+    }
+    // 触发虚拟滚动完成事件
+    proto._emitScroll = function () {
+        this.$emit('scroll', {
+            scrollY: this.scrollY,
+            scrollX: this.scrollX,
+            top: this.position.top,
+            left: this.position.left,
+        })
+    }
+
+    // API
+    // 更新虚拟列表
+    proto.update = throttle(16 * 3, function (force) {
+        var list = this.list,
+            clientHeight = this.clientHeight,
+            scrollY = this.scrollY
+
+        if (this.position.adjusting) {
+            return
+        }
+        if (scrollY < 0) scrollY = 0
+
+        var pos = this.position,
+            size = this.virtualLength,
+            mh = this.minRowHeight,
+            strategy, // 等差滚动 or 等比滚动
+            deltaY = scrollY - pos.lastCalcScrollY // 垂直滚动增量
+
+        // 首次计算
+        if (pos.init === false) {
+            pos.init = true
+            pos.rowCount = list.length
+            pos.vh = pos.rowCount * mh
+            pos.er = Math.min(this.virtualLength - 1, pos.rowCount - 1)
+            pos.rows = list.slice(pos.sr, pos.er + 1)
+            if (this.virtualAdjust) pos.adjusting = true
+            else {
+                pos.ahs = repeat(mh, size)
+                pos.ah = sum(pos.hs)
+            }
+        }
+        // 上一次的计算结果
+        var ah = pos.ah,
+            rowCount = pos.rowCount,
+            top = pos.top,
+            sr = pos.sr,
+            er = pos.er,
+            lastCalcScrollY = pos.lastCalcScrollY
+
+        // 同步实际数据
+        pos.rowCount = list.length
+        pos.scrollY = scrollY
+        // 等比滚动
+        function reCalc() {
+            strategy = 're'
+            // console.log('before', pos.sr, pos.er)
+            var extra = ah - (pos.er - pos.sr + 1) * mh
+            // 还原高度
+            pos.vh = pos.rowCount * mh
+            pos.cr = Math.ceil((scrollY - extra) / mh)
+            pos.sr = Math.max(pos.cr - Math.ceil(size / 3), 0)
+            pos.er = Math.min(pos.sr + size - 1, pos.rowCount - 1)
+            pos.topRem = pos.cr * mh - scrollY + extra
+        }
+        // 等差滚动
+        function relativeCalc() {
+            strategy = 'relative'
+            // console.log('before', pos.sr, pos.er)
+            pos.cr = idxSumUntil(pos.ahs, scrollY - top) + sr + 1
+            pos.topRem = sum(pos.ahs, 0, pos.cr - pos.sr - 1) - (scrollY - top)
+            pos.sr = Math.max(pos.cr - Math.ceil(size / 3), 0)
+            pos.er = Math.min(pos.sr + size - 1, pos.rowCount - 1)
+        }
+        // prettier-ignore
+        // console.log('deltaY: ', deltaY, ' >', (ah - (lastCalcScrollY - top) - clientHeight)* 0.8)
+
+        // 数据长度发生了变化
+        if (rowCount !== pos.rowCount || force) {
+            reCalc() 
+        }
+        // 相对向下滚动（相对于上一次的计算位置）
+        else if (deltaY > 0) {
+            // 超过原下半部阈值
+            if (deltaY > (ah - (lastCalcScrollY - top) - clientHeight) * 0.8) {
+                // 在等差计算范围内
+                if (scrollY - top <= ah) {
+                    relativeCalc()
+                } else {
+                    reCalc()
+                }
+            }
+        }
+        // 相对向上滚动
+        else if (deltaY < 0) {
+            // 超过原上半部阈值
+            if (deltaY < -(lastCalcScrollY - top) * 0.8) {
+                // 在等差计算范围内
+                if (scrollY - top > 0) {
+                    relativeCalc()
+                } else {
+                    reCalc()
+                }
+            }
+        }
+
+        // 虚拟列表有变化
+        if (sr !== pos.sr || er !== pos.er || rowCount !== pos.rowCount || force) {
+            pos.lastCalcScrollY = scrollY
+
+            if (strategy === 'relative') {
+                this._setInnerList(pos.sr, pos.er + 1)
+            } else {
+                this._setInnerListDelay(pos.sr, pos.er + 1)
+            }
+        }
+        // console.timeEnd("calcposition")
     })
+    // 虚拟列表各行高度自适应调整
+    proto.adjust = function (ahs) {
+        if (this.position.adjusting === false) {
+            return
+        }
+        if (!ahs || !ahs.splice) {
+            throw new Error('ahs must be array<Number>')
+        }
+        // console.time("calcposition")
+        // console.time("adjust")
+        var pos = this.position,
+            mh = this.minRowHeight
+
+        // 实际高度补差
+        pos.ahs = ahs
+        pos.ah = sum(ahs)
+        // 虚拟高度补差
+        pos.vh = pos.rowCount * mh + pos.ah - ahs.length * mh
+        //
+        this._virtualScrollTo()
+        // end
+        pos.adjusting = false
+        // console.log('after', pos.sr, pos.er)
+        // console.timeEnd("adjust")
+    }
+    // 实际滚动
+    proto.scrollTo = function (x, y) {
+        // ({ top: number, left: number})
+        if (typeof x === 'object') {
+            y = x.top
+            x = x.left
+        }
+        if (!isNullOrUnDef(x)) this.scrollX = x
+        if (!isNullOrUnDef(y)) this.scrollY = y
+
+        this.update()
+        this._emitScroll()
+    }
+    // 还原初始位置
+    proto.resetVirtualPosition = function () {
+        assign(this.position, {
+            init: false,
+            adjusting: false,
+            //
+            vh: 0,
+            ah: 0,
+            ahs: [],
+            top: 0,
+            scrollY: 0,
+            lastCalcScrollY: 0,
+            topRem: 0,
+            sr: 0,
+            cr: 0,
+            er: this.virtualLength - 1,
+            rows: [],
+            rowCount: 0,
+            //
+            vw: 0,
+            aw: 0,
+            aws: [],
+            left: 0,
+            scrollX: 0,
+            lastCalcScrollX: 0,
+            leftRem: 0,
+            sc: 0,
+            cc: 0,
+            ec: this.virtualSpan - 1,
+            columns: [],
+            colCount: 0,
+        })
+    }
 
     return VirtualScrollBounding
 })
