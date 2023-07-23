@@ -1,4 +1,4 @@
-const VirtualScrollBounding = require('../vsb')
+const VirtualScrollBounding = require('../src/vsb')
 
 let list
 
@@ -10,7 +10,7 @@ describe('vsb', function () {
         }
     })
 
-    it('equal ratio scrolling', function () {
+    it('equal ratio scrolling', function (done) {
         let vsb = new VirtualScrollBounding({
             list,
             minRowHeight: 30,
@@ -23,6 +23,7 @@ describe('vsb', function () {
         vsb.scrollTo({
             top: 40 * 30 + 15,
         })
+
         vsb.position.sr.should.equal(31)
         vsb.position.cr.should.equal(41)
         vsb.position.er.should.equal(60)
@@ -30,7 +31,7 @@ describe('vsb', function () {
         vsb.position.topRem.should.equal(15)
     })
 
-    it('equal difference scrolling', function () {
+    it('equal difference scrolling', function (done) {
         let vsb = new VirtualScrollBounding({
             list,
             minRowHeight: 30,
@@ -44,12 +45,14 @@ describe('vsb', function () {
         vsb.scrollTo({
             top: 10 * 30 + 15,
         })
+
         vsb.position.vh.should.equal(1000 * 30)
         vsb.position.sr.should.equal(1)
         vsb.position.cr.should.equal(11)
         vsb.position.er.should.equal(30)
         vsb.position.top.should.equal(30)
         vsb.position.topRem.should.equal(15)
+
         // adjusting
         var ahs = []
         // the first 10 rows become higher
