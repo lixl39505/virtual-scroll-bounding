@@ -1,6 +1,5 @@
 .DS_Store
 node_modules
-/dist
 /debug
 /test/dist
 /test/.wgs

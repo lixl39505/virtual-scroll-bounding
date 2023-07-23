@@ -2,9 +2,9 @@
     "name": "virtual-scroll-bounding",
     "version": "0.0.1",
     "description": "js virtual scroll model",
-    "main": "vsb.min.js",
+    "main": "dist/vsb.min.js",
     "scripts": {
-        "build": "terser ./index.js -c -o vsb.min.js",
+        "build": "terser ./src/vsb.js -c -o ./dist/vsb.min.js",
         "test": "mocha",
         "test:debug": "mocha --inspect-brk",
         "coverage": "nyc -r json -r html mocha",
@@ -20,8 +20,7 @@
     },
     "keywords": [
         "js",
-        "virtual",
-        "scroll"
+        "virtual-scroll"
     ],
     "author": "pixelsLee <pixelslee@foxmail.com>",
     "license": "MIT",
